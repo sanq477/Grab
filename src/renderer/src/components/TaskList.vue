@@ -131,6 +131,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ElMessageBox } from 'element-plus'
 
 const tasks = ref([])
 const filterStatus = ref('')
@@ -228,6 +229,41 @@ const deleteTask = (id) => {
 onMounted(() => {
   loadTasks()
   window.addEventListener('keydown', handleKeydown)
+  
+  // 监听主进程快捷键添加任务 - 直接创建，不弹窗
+  if (window.api && window.api.onQuickAddTask) {
+    window.api.onQuickAddTask((data) => {
+      // 智能识别优先级
+      let priority = 'medium'
+      const lowerText = data.text.toLowerCase()
+      if (lowerText.includes('紧急') || lowerText.includes('立即') || lowerText.includes('马上') || lowerText.includes('急')) {
+        priority = 'high'
+      } else if (lowerText.includes('不急') || lowerText.includes('有空') || lowerText.includes('慢慢') || lowerText.includes('不急')) {
+        priority = 'low'
+      }
+      
+      // 智能识别状态
+      let status = 'pending'
+      if (lowerText.includes('已完成') || lowerText.includes('做完了') || lowerText.includes('完成')) {
+        status = 'completed'
+      } else if (lowerText.includes('进行中') || lowerText.includes('正在') || lowerText.includes('处理中')) {
+        status = 'in_progress'
+      }
+      
+      // 直接创建任务
+      const newTask = {
+        id: Date.now(),
+        title: data.title,
+        description: data.text,
+        status,
+        priority,
+        deadline: data.deadline || ''
+      }
+      tasks.value.unshift(newTask)
+      saveTasks()
+      ElMessage.success('任务添加成功')
+    })
+  }
 })
 
 onUnmounted(() => {

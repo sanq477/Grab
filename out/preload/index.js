@@ -9,6 +9,9 @@ if (process.contextIsolated) {
         get: (key) => electron.ipcRenderer.invoke("store:get", key),
         set: (key, value) => electron.ipcRenderer.invoke("store:set", key, value),
         delete: (key) => electron.ipcRenderer.invoke("store:delete", key)
+      },
+      onQuickAddTask: (callback) => {
+        electron.ipcRenderer.on("quick-add-task", (_, data) => callback(data));
       }
     });
   } catch (error) {
