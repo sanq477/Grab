@@ -63,7 +63,9 @@ const shortcuts = ref([])
 const capturingKey = ref(null)
 const defaultShortcuts = [
   { key: 'quickAdd', label: '快速添加任务', description: '在任务列表页面快速添加新任务', keys: ['CommandOrControl', 'n'] },
-  { key: 'toggleComplete', label: '标记完成', description: '将选中任务标记为完成', keys: ['Enter'] }
+  { key: 'toggleComplete', label: '标记完成', description: '将选中任务标记为完成', keys: ['Enter'] },
+  { key: 'showCurrentTask', label: '查看当前任务', description: '显示当前正在处理的任务', keys: ['CommandOrControl', '1'] },
+  { key: 'showTodayTasks', label: '查看今日任务', description: '显示今天所有的任务', keys: ['CommandOrControl', '2'] }
 ]
 
 const getKeyDisplay = (keys) => {

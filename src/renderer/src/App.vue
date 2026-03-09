@@ -44,17 +44,21 @@
         <Settings v-else-if="activeMenu === 'settings'" key="settings" />
       </Transition>
     </main>
+    
+    <FloatPanel ref="floatPanelRef" @taskClick="handleTaskClick" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, h } from 'vue'
+import { ref, computed, onMounted, onUnmounted, h } from 'vue'
 import TaskList from './components/TaskList.vue'
 import Statistics from './components/Statistics.vue'
 import Settings from './components/Settings.vue'
+import FloatPanel from './components/FloatPanel.vue'
 
 const activeMenu = ref('task')
 const tasks = ref([])
+const floatPanelRef = ref(null)
 
 const ListIcon = {
   render: () => h('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none' }, [
@@ -96,7 +100,75 @@ onMounted(() => {
       tasks.value = JSON.parse(stored)
     }
   })
+  
+  // 监听键盘快捷键
+  window.addEventListener('keydown', handleGlobalKeydown)
 })
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown)
+})
+
+const handleGlobalKeydown = (e) => {
+  // 获取保存的快捷键设置
+  const storedShortcuts = localStorage.getItem('shortcutSettings')
+  let shortcuts = [
+    { key: 'quickAdd', keys: ['CommandOrControl', 'n'] },
+    { key: 'toggleComplete', keys: ['Enter'] },
+    { key: 'showCurrentTask', keys: ['CommandOrControl', '1'] },
+    { key: 'showTodayTasks', keys: ['CommandOrControl', '2'] }
+  ]
+  if (storedShortcuts) {
+    try {
+      shortcuts = JSON.parse(storedShortcuts)
+    } catch (e) {
+      // 使用默认
+    }
+  }
+  
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+  
+  // 检查是否是修饰键 + 数字
+  const hasMod = isMac ? e.metaKey : e.ctrlKey
+  
+  // 查看当前任务
+  if (hasMod && e.key === '1') {
+    e.preventDefault()
+    showCurrentTask()
+  }
+  // 查看今日任务
+  else if (hasMod && e.key === '2') {
+    e.preventDefault()
+    showTodayTasks()
+  }
+}
+
+const showCurrentTask = () => {
+  // 找到第一个进行中的任务
+  const currentTask = tasks.value.find(t => t.status === 'in_progress')
+  if (currentTask) {
+    floatPanelRef.value?.show([currentTask], '当前任务', 'current')
+  } else {
+    // 如果没有进行中的，显示待处理第一个
+    const pendingTasks = tasks.value.filter(t => t.status === 'pending')
+    if (pendingTasks.length > 0) {
+      floatPanelRef.value?.show([pendingTasks[0]], '当前任务', 'current')
+    } else {
+      floatPanelRef.value?.show([], '当前任务', 'current')
+    }
+  }
+}
+
+const showTodayTasks = () => {
+  const today = new Date().toISOString().split('T')[0]
+  const todayTasks = tasks.value.filter(t => t.deadline === today)
+  floatPanelRef.value?.show(todayTasks, '今日任务', 'today')
+}
+
+const handleTaskClick = (task) => {
+  // 跳转到任务列表并显示该任务
+  activeMenu.value = 'task'
+}
 </script>
 
 <style>
