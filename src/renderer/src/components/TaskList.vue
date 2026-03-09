@@ -38,46 +38,70 @@
           class="quick-add-input" 
           placeholder="快速添加任务... (⌘N)"
           @keydown.enter="quickAdd"
+          @compositionstart="isComposing = true"
+          @compositionend="isComposing = false"
         />
-        <span class="quick-add-hint">按回车添加</span>
+        <button class="quick-add-btn" @click="quickAdd" :disabled="!quickAddTitle.trim()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
     </div>
 
-    <TransitionGroup name="task" tag="div" class="task-cards">
-      <div v-for="task in filteredTasks" :key="task.id" class="task-card">
-        <div class="task-card-header">
-          <div class="task-priority" :class="task.priority"></div>
-          <div class="task-info">
-            <h3 class="task-title">{{ task.title }}</h3>
-            <p v-if="task.description" class="task-desc">{{ task.description }}</p>
-          </div>
-          <div class="task-status" :class="task.status">
-            {{ getStatusText(task.status) }}
-          </div>
+    <TransitionGroup :name="'task-' + filterStatus" tag="div" class="task-cards">
+      <div v-for="(task, index) in filteredTasks" :key="task.id" 
+           class="task-card" 
+           draggable="true"
+           @dragstart="dragStart(index, $event)"
+           @dragenter="dragEnter(index)"
+           @dragend="dragEnd"
+           @dragover.prevent
+           @drop="drop(index)"
+           :class="{ 
+             dragging: dragIndex === index,
+             'drag-over': dragOverIndex === index && dragIndex !== index
+           }">
+        <div class="drag-handle" title="拖动排序">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M8 6h2M8 12h2M8 18h2M14 6h2M14 12h2M14 18h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
         </div>
-        <div class="task-card-footer">
-          <div class="task-meta">
-            <span v-if="task.deadline" class="task-deadline">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M19 4H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zM16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              {{ task.deadline }}
-            </span>
-            <span class="task-priority-tag" :class="task.priority">
-              {{ getPriorityText(task.priority) }}
-            </span>
+        <div class="task-card-content">
+          <div class="task-card-header">
+            <div class="task-priority" :class="task.priority"></div>
+            <div class="task-info">
+              <h3 class="task-title">{{ task.title }}</h3>
+              <p v-if="task.description" class="task-desc">{{ task.description }}</p>
+            </div>
+            <div class="task-status" :class="task.status">
+              {{ getStatusText(task.status) }}
+            </div>
           </div>
-          <div class="task-actions">
-            <button class="action-btn" @click="editTask(task)" title="编辑">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-            <button class="action-btn delete" @click="deleteTask(task.id)" title="删除">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
+          <div class="task-card-footer">
+            <div class="task-meta">
+              <span v-if="task.deadline" class="task-deadline">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M19 4H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zM16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                {{ task.deadline }}
+              </span>
+              <span class="task-priority-tag" :class="task.priority">
+                {{ getPriorityText(task.priority) }}
+              </span>
+            </div>
+            <div class="task-actions">
+              <button class="action-btn" @click="editTask(task)" title="编辑">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <button class="action-btn delete" @click="deleteTask(task.id)" title="删除">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -139,6 +163,10 @@ const quickAddTitle = ref('')
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editingId = ref(null)
+const dragIndex = ref(-1)
+const dragOverIndex = ref(-1)
+const isComposing = ref(false) // 中文输入状态
+const lastQuickAddText = ref('') // 记录失焦时的内容
 
 const taskForm = ref({
   title: '',
@@ -149,8 +177,30 @@ const taskForm = ref({
 })
 
 const filteredTasks = computed(() => {
-  if (!filterStatus.value) return tasks.value
-  return tasks.value.filter(task => task.status === filterStatus.value)
+  let result = [...tasks.value]
+  
+  // 按 sortOrder 排序（手动排序），然后按优先级，最后按截止日期
+  const priorityOrder = { high: 0, medium: 1, low: 2 }
+  result.sort((a, b) => {
+    // 先按手动排序序号
+    if (a.sortOrder !== undefined && b.sortOrder !== undefined) {
+      return a.sortOrder - b.sortOrder
+    }
+    // 再按优先级
+    const pa = priorityOrder[a.priority] ?? 1
+    const pb = priorityOrder[b.priority] ?? 1
+    if (pa !== pb) return pa - pb
+    // 再按截止日期（近的在前）
+    if (a.deadline && b.deadline) {
+      return new Date(a.deadline) - new Date(b.deadline)
+    }
+    if (a.deadline) return -1
+    if (b.deadline) return 1
+    return 0
+  })
+  
+  if (!filterStatus.value) return result
+  return result.filter(task => task.status === filterStatus.value)
 })
 
 const getStatusText = (status) => {
@@ -173,6 +223,74 @@ const loadTasks = () => {
 const saveTasks = () => {
   localStorage.setItem('tasks', JSON.stringify(tasks.value))
   window.dispatchEvent(new Event('storage'))
+}
+
+const dragStart = (index, event) => {
+  dragIndex.value = index
+  dragOverIndex.value = -1
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', index.toString())
+}
+
+const dragEnter = (index) => {
+  if (dragIndex.value === -1) return
+  dragOverIndex.value = index
+}
+
+const drop = (index) => {
+  if (dragIndex.value === -1 || dragIndex.value === index) {
+    dragIndex.value = -1
+    dragOverIndex.value = -1
+    return
+  }
+  
+  // 从 filteredTasks 获取要移动的任务
+  const filtered = filteredTasks.value
+  const taskToMove = filtered[dragIndex.value]
+  if (!taskToMove) {
+    dragIndex.value = -1
+    dragOverIndex.value = -1
+    return
+  }
+  
+  // 找到这个任务在 tasks 中的位置
+  const fromIndex = tasks.value.findIndex(t => t.id === taskToMove.id)
+  if (fromIndex === -1) {
+    dragIndex.value = -1
+    dragOverIndex.value = -1
+    return
+  }
+  
+  // 计算目标位置
+  let toIndex = index
+  if (index >= filtered.length) {
+    toIndex = tasks.value.length - 1
+  } else {
+    const targetTask = filtered[index]
+    toIndex = tasks.value.findIndex(t => t.id === targetTask?.id)
+  }
+  
+  if (toIndex === -1) toIndex = tasks.value.length - 1
+  
+  // 移动任务
+  const items = [...tasks.value]
+  const [moved] = items.splice(fromIndex, 1)
+  items.splice(toIndex, 0, moved)
+  
+  // 更新 sortOrder
+  items.forEach((task, i) => {
+    task.sortOrder = i
+  })
+  
+  tasks.value = items
+  dragIndex.value = -1
+  dragOverIndex.value = -1
+  saveTasks()
+}
+
+const dragEnd = () => {
+  dragIndex.value = -1
+  dragOverIndex.value = -1
 }
 
 const addTask = () => {
@@ -207,7 +325,11 @@ const saveTask = () => {
       tasks.value[index] = { ...taskForm.value, id: editingId.value }
     }
   } else {
-    tasks.value.push({ ...taskForm.value, id: Date.now() })
+    // 计算新的 sortOrder（放在最前面）
+    const newSortOrder = tasks.value.length > 0 
+      ? Math.min(...tasks.value.map(t => t.sortOrder ?? 0)) - 1 
+      : 0
+    tasks.value.push({ ...taskForm.value, id: Date.now(), sortOrder: newSortOrder })
   }
   saveTasks()
   dialogVisible.value = false
@@ -271,21 +393,145 @@ onUnmounted(() => {
 })
 
 const handleKeydown = (e) => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
-    e.preventDefault()
-    addTask()
+  // 获取保存的快捷键设置
+  const storedShortcuts = localStorage.getItem('shortcutSettings')
+  let shortcuts = [
+    { key: 'quickAdd', keys: ['CommandOrControl', 'n'] },
+    { key: 'toggleComplete', keys: ['Enter'] }
+  ]
+  if (storedShortcuts) {
+    try {
+      const parsed = JSON.parse(storedShortcuts)
+      shortcuts = parsed
+    } catch (e) {
+      // 使用默认
+    }
+  }
+  
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
+  
+  // 检查快速添加任务快捷键
+  const quickAddShortcut = shortcuts.find(s => s.key === 'quickAdd')
+  if (quickAddShortcut && quickAddShortcut.keys && quickAddShortcut.keys.length) {
+    const hasCtrl = quickAddShortcut.keys.some(k => k === 'Control' || k === 'CommandOrControl' || (isMac && k === 'Command'))
+    const hasKey = quickAddShortcut.keys.some(k => k.toLowerCase() === e.key.toLowerCase())
+    
+    if (hasCtrl && hasKey) {
+      e.preventDefault()
+      // 聚焦到快速添加输入框
+      const input = document.querySelector('.quick-add-input')
+      if (input) input.focus()
+      return
+    }
   }
 }
 
 const quickAdd = () => {
-  if (!quickAddTitle.value.trim()) return
+  // 如果正在中文输入，不处理
+  if (isComposing.value) return
+  
+  const text = quickAddTitle.value.trim()
+  if (!text) return
+  let title = text
+  let deadline = ''
+  let priority = 'medium'
+  
+  const today = new Date()
+  const currentYear = today.getFullYear()
+  const todayStr = today.toISOString().split('T')[0]
+  
+  const lowerText = text.toLowerCase()
+  
+  // 先检查是否指定了日期
+  let hasDate = false
+  
+  // 检查"今天"
+  if (lowerText.includes('今天')) {
+    deadline = todayStr
+    title = text.replace(/今天/gi, '').trim()
+    hasDate = true
+  }
+  // 检查"明天"
+  else if (lowerText.includes('明天')) {
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    deadline = tomorrow.toISOString().split('T')[0]
+    title = text.replace(/明天/gi, '').trim()
+    hasDate = true
+  }
+  // 检查"后天"
+  else if (lowerText.includes('后天')) {
+    const dayAfter = new Date(today)
+    dayAfter.setDate(dayAfter.getDate() + 2)
+    deadline = dayAfter.toISOString().split('T')[0]
+    title = text.replace(/后天/gi, '').trim()
+    hasDate = true
+  }
+  // 检查"几月几号"格式
+  else {
+    const monthDayMatch = text.match(/(\d{1,2})[月\-\/](\d{1,2})[号日]?/)
+    if (monthDayMatch) {
+      const month = parseInt(monthDayMatch[1])
+      const day = parseInt(monthDayMatch[2])
+      if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        const date = new Date(currentYear, month - 1, day)
+        // 如果日期已过，默认明年
+        if (date < today) {
+          date.setFullYear(currentYear + 1)
+        }
+        deadline = date.toISOString().split('T')[0]
+        title = text.replace(monthDayMatch[0], '').trim()
+        hasDate = true
+      }
+    }
+  }
+  
+  // 如果没有指定日期，默认今天
+  if (!hasDate) {
+    deadline = todayStr
+  }
+  
+  // 智能识别优先级
+  if (lowerText.includes('紧急') || lowerText.includes('立即') || lowerText.includes('马上') || lowerText.includes('急') || lowerText.includes('重要') || lowerText.includes('高')) {
+    priority = 'high'
+    title = title.replace(/紧急|立即|马上|急|重要|高/gi, '').trim()
+  } else if (lowerText.includes('不急') || lowerText.includes('有空') || lowerText.includes('慢慢') || lowerText.includes('低')) {
+    priority = 'low'
+    title = title.replace(/不急|有空|慢慢|低/gi, '').trim()
+  }
+  
+  // 智能识别状态
+  let status = 'pending'
+  
+  // 只有明确表示"已完成"的才标记为完成
+  // 排除"要完成"、"明天完成"等未来时态
+  const completedPatterns = [/已完成/, /做完了/, /已经完成/, /已完成/]
+  const hasExplicitComplete = completedPatterns.some(pattern => pattern.test(text))
+  
+  if (hasExplicitComplete) {
+    status = 'completed'
+    title = text.replace(/已完成|做完了|已经完成/gi, '').trim()
+  } else if (lowerText.includes('进行中') || lowerText.includes('正在') || lowerText.includes('处理中')) {
+    status = 'in_progress'
+    title = title.replace(/进行中|正在|处理中/gi, '').trim()
+  }
+  
+  // 清理可能剩余的介词
+  title = title.replace(/^完成|^开始|^做/gi, '').trim()
+  
+  // 计算新的 sortOrder（放在最前面）
+  const newSortOrder = tasks.value.length > 0 
+    ? Math.min(...tasks.value.map(t => t.sortOrder ?? 0)) - 1 
+    : 0
+  
   tasks.value.unshift({
     id: Date.now(),
-    title: quickAddTitle.value.trim(),
+    title: title || text,
     description: '',
-    status: 'pending',
-    priority: 'medium',
-    deadline: ''
+    status,
+    priority,
+    deadline,
+    sortOrder: newSortOrder
   })
   saveTasks()
   quickAddTitle.value = ''
@@ -355,19 +601,33 @@ const quickAdd = () => {
   background: transparent;
 }
 
+.quick-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--accent-blue);
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.quick-add-btn:hover:not(:disabled) {
+  background: #0077ed;
+  transform: scale(1.05);
+}
+
+.quick-add-btn:disabled {
+  background: #c7c7cc;
+  cursor: not-allowed;
+}
+
 .quick-add-input::placeholder {
   color: var(--text-secondary);
-}
-
-.quick-add-hint {
-  font-size: 12px;
-  color: var(--text-secondary);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.quick-add-input-wrapper:focus-within .quick-add-hint {
-  opacity: 1;
 }
 
 .header-actions {
@@ -418,6 +678,57 @@ const quickAdd = () => {
   border-radius: 12px;
   padding: 16px 20px;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.task-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.task-card.dragging {
+  opacity: 0.5;
+  background: #f0f7ff;
+  transform: scale(1.02);
+}
+
+.task-card.drag-over {
+  border-top: 3px solid var(--accent-blue);
+  margin-top: -3px;
+}
+
+.drag-handle {
+  cursor: grab;
+  color: var(--text-secondary);
+  padding: 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.drag-handle:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.task-card-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.task-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .task-card:hover {
@@ -609,16 +920,20 @@ const quickAdd = () => {
 }
 
 .task-enter-active,
-.task-leave-active {
+.task-leave-active,
+.task--enter-active,
+.task--leave-active {
   transition: all 0.3s ease;
 }
 
-.task-enter-from {
+.task-enter-from,
+.task--enter-from {
   opacity: 0;
   transform: translateY(-10px);
 }
 
-.task-leave-to {
+.task-leave-to,
+.task--leave-to {
   opacity: 0;
   transform: translateX(10px);
 }
